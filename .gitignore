@@ -1,0 +1,4 @@
+deploy.bat
+go.sum
+signoz-telegram-alerts
+*.exe
