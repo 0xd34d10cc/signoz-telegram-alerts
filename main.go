@@ -83,6 +83,22 @@ func (state *AlertsState) Clear(name string) bool {
 	defer state.m.Unlock()
 
 	_, ok := state.alerts[name]
+	if !ok {
+		return false
+	}
+
+	state.alerts[name] = AlertInfo{
+		firing:     false,
+		lastUpdate: time.Now(),
+	}
+	return true
+}
+
+func (state *AlertsState) Delete(name string) bool {
+	state.m.Lock()
+	defer state.m.Unlock()
+
+	_, ok := state.alerts[name]
 	if ok {
 		delete(state.alerts, name)
 	}
@@ -163,13 +179,25 @@ func main() {
 	// 	},
 	// })
 
-	b.Handle("/list", func(c telebot.Context) error {
+	b.Handle("/status", func(c telebot.Context) error {
 		status := state.Status()
 		if status == "" {
 			return c.Reply("No alerts available")
 		}
 
 		return c.Reply(status)
+	})
+
+	b.Handle("/clear", func(c telebot.Context) error {
+		name := strings.TrimPrefix(c.Message().Text, "/clear ")
+		status := state.Clear(name)
+		return c.Reply(fmt.Sprintf("Cleared %v: %v", name, status))
+	})
+
+	b.Handle("/delete", func(c telebot.Context) error {
+		name := strings.TrimPrefix(c.Message().Text, "/clear ")
+		status := state.Delete(name)
+		return c.Reply(fmt.Sprintf("Deleted %v: %v", name, status))
 	})
 
 	b.Handle("/inspect", func(c telebot.Context) error {
@@ -179,12 +207,6 @@ func main() {
 		}
 
 		return c.Send(string(m))
-	})
-
-	b.Handle("/clear", func(c telebot.Context) error {
-		name := strings.TrimPrefix(c.Message().Text, "/clear ")
-		status := state.Clear(name)
-		return c.Reply(fmt.Sprintf("Cleared %v: %v", name, status))
 	})
 
 	go b.Start()
